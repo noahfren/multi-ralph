@@ -38,6 +38,10 @@ from dataclasses import dataclass
 from enum import Enum
 
 
+# Default timeout for agent execution (30 minutes)
+DEFAULT_AGENT_TIMEOUT_SECONDS = 1800
+
+
 # Agent type to file mapping
 # These correspond to files in .claude/agents/
 AGENT_TYPE_TO_FILE = {
@@ -474,6 +478,30 @@ def build_claude_prompt(task: BeadTask) -> str:
         "3. Ensure all acceptance criteria are met",
         "4. Run relevant tests to verify your implementation",
         "",
+        "## IMPORTANT: Progress Tracking",
+        "",
+        "You have a **30-minute timeout**. To ensure your work isn't lost if time runs out:",
+        "",
+        "**Record progress notes periodically** using the beads CLI:",
+        "```bash",
+        f"bd update {task.id} --notes \"Progress: <describe what you've completed and what remains>\"",
+        "```",
+        "",
+        "**When to record progress:**",
+        "- After completing each major step (reading design doc, writing tests, implementing code)",
+        "- After every 5-10 minutes of work",
+        "- Before starting any long-running operation (builds, test suites)",
+        "- When you encounter blockers or make key decisions",
+        "",
+        "**What to include in progress notes:**",
+        "- Files you've created or modified",
+        "- Tests written and their status",
+        "- Key implementation decisions made",
+        "- What remains to be done",
+        "- Any blockers or issues encountered",
+        "",
+        "This ensures that if a fresh agent picks up this task, it can continue from where you left off.",
+        "",
         "Begin working on this task now.",
     ])
 
@@ -484,14 +512,22 @@ def run_agent(
     task: BeadTask,
     dry_run: bool = False,
     model_override: Optional[str] = None,
-) -> tuple[bool, Optional[str]]:
+    timeout_seconds: int = DEFAULT_AGENT_TIMEOUT_SECONDS,
+) -> tuple[bool, Optional[str], bool]:
     """
     Launch Claude Code with the appropriate agent configuration.
 
     Uses --agent flag if agent config exists, otherwise falls back to
     --append-system-prompt with built-in prompts.
 
-    Returns (success, session_id)
+    Args:
+        task: The BeadTask to work on
+        dry_run: If True, don't actually run the agent
+        model_override: Override the model from agent config
+        timeout_seconds: Maximum time to allow the agent to run (default: 30 min)
+
+    Returns:
+        (success, session_id, timed_out) - timed_out indicates if the agent was killed due to timeout
     """
     agent_type = task.agent_type
     agent_name = task.agent_name
@@ -504,6 +540,7 @@ def run_agent(
     print(f"Running {agent_type} agent on task: {task.id}")
     print(f"Title: {task.title}")
     print(f"Agent config: {agent_name}.md" if use_agent_file else f"Using fallback prompt")
+    print(f"Timeout: {timeout_seconds // 60} minutes ({timeout_seconds} seconds)")
     print(f"{'='*60}\n")
 
     if dry_run:
@@ -513,8 +550,9 @@ def run_agent(
         print(f"  Config file exists: {use_agent_file}")
         if model_override:
             print(f"  Model override: {model_override}")
+        print(f"  Timeout: {timeout_seconds} seconds")
         print(f"  Task prompt length: {len(task_prompt)} chars")
-        return True, None
+        return True, None, False
 
     # Build Claude Code command
     cmd = [
@@ -545,12 +583,13 @@ def run_agent(
             capture_output=True,
             text=True,
             check=False,
+            timeout=timeout_seconds,
         )
 
         if result.returncode != 0:
             print(f"Claude Code exited with error: {result.returncode}")
             print(f"Stderr: {result.stderr}")
-            return False, None
+            return False, None, False
 
         # Try to parse the JSON output for session ID
         session_id = None
@@ -569,11 +608,18 @@ def run_agent(
             print(result.stdout)
             print("--- End Output ---\n")
 
-        return True, session_id
+        return True, session_id, False
+
+    except subprocess.TimeoutExpired:
+        print(f"\n{'!'*60}")
+        print(f"TIMEOUT: Agent exceeded {timeout_seconds // 60} minute limit")
+        print(f"Task {task.id} will be marked for retry with progress notes")
+        print(f"{'!'*60}\n")
+        return False, None, True
 
     except Exception as e:
         print(f"Error running Claude Code: {e}", file=sys.stderr)
-        return False, None
+        return False, None, False
 
 
 def orchestrate(
@@ -583,6 +629,7 @@ def orchestrate(
     model_override: Optional[str] = None,
     auto_complete: bool = True,
     resume: bool = False,
+    timeout_seconds: int = DEFAULT_AGENT_TIMEOUT_SECONDS,
 ) -> int:
     """
     Main orchestration loop with hierarchy depth prioritization.
@@ -601,6 +648,7 @@ def orchestrate(
         model_override: Override the model specified in agent configs
         auto_complete: If True, automatically mark tasks as done on success
         resume: If True, pick up in-progress tasks before moving to ready tasks
+        timeout_seconds: Maximum time for each agent execution (default: 30 min)
 
     Returns:
         Number of tasks processed
@@ -616,6 +664,7 @@ def orchestrate(
     print(f"  Label filter: {label_filter or '(none)'}")
     print(f"  Max iterations: {max_iterations or 'unlimited'}")
     print(f"  Model: {model_override}")
+    print(f"  Timeout: {timeout_seconds // 60} minutes ({timeout_seconds} seconds)")
     print(f"  Dry run: {dry_run}")
     print(f"  Auto-complete: {auto_complete}")
     print(f"  Resume mode: {resume}")
@@ -691,10 +740,11 @@ def orchestrate(
             print("[DRY RUN] Would claim task" if not is_resumed else "[DRY RUN] Would resume task")
 
         # Run the agent
-        success, session_id = run_agent(
+        success, session_id, timed_out = run_agent(
             task,
             dry_run=dry_run,
             model_override=model_override,
+            timeout_seconds=timeout_seconds,
         )
 
         # Update task status
@@ -703,10 +753,18 @@ def orchestrate(
                 if not complete_task(task.id, session_id):
                     print(f"Failed to complete task {task.id}, marking as blocked to prevent infinite loop")
                     fail_task(task.id, "Failed to mark task as done after successful agent run")
+            elif timed_out:
+                # On timeout, leave task in_progress so it can be resumed
+                # The agent should have recorded progress notes before timing out
+                print(f"Task {task.id} timed out - leaving in_progress for retry")
+                run_command([
+                    "bd", "update", task.id,
+                    "--notes", f"Agent timed out after {timeout_seconds // 60} minutes. Check progress notes for partial work."
+                ])
             elif not success:
                 fail_task(task.id, "Agent execution failed")
         else:
-            print(f"[DRY RUN] Would {'complete' if success else 'fail'} task")
+            print(f"[DRY RUN] Would {'complete' if success else 'timeout' if timed_out else 'fail'} task")
 
         iteration += 1
 
@@ -761,6 +819,12 @@ def main():
         action="store_true",
         help="Resume in-progress tasks before processing ready tasks"
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_AGENT_TIMEOUT_SECONDS,
+        help=f"Timeout in seconds for each agent execution (default: {DEFAULT_AGENT_TIMEOUT_SECONDS} = 30 minutes)"
+    )
 
     args = parser.parse_args()
 
@@ -786,6 +850,7 @@ def main():
             model_override=args.model,
             auto_complete=not args.no_auto_complete,
             resume=args.resume,
+            timeout_seconds=args.timeout,
         )
     except KeyboardInterrupt:
         print("\n\nOrchestration interrupted by user.")
