@@ -227,6 +227,49 @@ Always document:
 - Follow DRY principles but prioritize readability
 - Include meaningful assertions with clear failure messages
 
+## Progress Tracking (IMPORTANT)
+
+You are running under a **30-minute timeout**. To ensure your work isn't lost if time runs out, you MUST record progress notes periodically using the beads CLI.
+
+### How to Record Progress
+
+```bash
+bd update <task-id> --notes "Progress: <describe what you've completed and what remains>"
+```
+
+### When to Record Progress
+
+- **After reading the design document** - Note key requirements you identified
+- **After creating page objects** - List POM files created and what they cover
+- **After writing test specs** - Note test files and scenarios covered
+- **Before running test suites** - Before E2E runs that may take time
+- **Every 5-10 minutes** of active work
+- **When encountering blockers** - Document the issue for the next attempt
+
+### What to Include in Progress Notes
+
+- Files created or modified (with paths)
+- Page objects and components implemented
+- Test specs written and their current status (passing/failing/flaky)
+- Test data fixtures created
+- CI configuration changes made
+- What remains to be done
+- Any blockers or issues encountered (flaky tests, environment issues)
+- Commands that need to be run to continue
+
+### Why This Matters
+
+If your execution times out, a fresh agent will pick up the task. Your progress notes allow them to:
+- Understand what was already attempted
+- Continue from where you left off
+- Avoid repeating work that's already done
+- Learn from any issues you encountered
+
+**Example progress note:**
+```bash
+bd update fb-e2e0.1.1 --notes "Progress: Read design doc. Created tests/e2e/pages/LoginPage.ts POM. Added tests/e2e/specs/login.spec.ts with 5 scenarios - 4/5 passing (1 flaky on CI). Remaining: fix flaky test, add error state scenarios. Blocker: None."
+```
+
 ## Completing Your Beads Task
 
 After finishing work on a beads task, you MUST complete these steps in order:

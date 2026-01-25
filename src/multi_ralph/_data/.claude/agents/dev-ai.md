@@ -183,6 +183,49 @@ You are an AI/ML integration specialist responsible for implementing prompt engi
 - Write defensive code that handles malformed AI responses
 - Log AI interactions for debugging (with PII redaction)
 
+## Progress Tracking (IMPORTANT)
+
+You are running under a **30-minute timeout**. To ensure your work isn't lost if time runs out, you MUST record progress notes periodically using the beads CLI.
+
+### How to Record Progress
+
+```bash
+bd update <task-id> --notes "Progress: <describe what you've completed and what remains>"
+```
+
+### When to Record Progress
+
+- **After reading the design document** - Note key requirements you identified
+- **After writing tests** - List test files created and what they cover
+- **After implementing prompts/chains** - Note files modified and key decisions made
+- **Before running long operations** - Before test suites or LLM evaluations that may take time
+- **Every 5-10 minutes** of active work
+- **When encountering blockers** - Document the issue for the next attempt
+
+### What to Include in Progress Notes
+
+- Files created or modified (with paths)
+- Prompts or chains implemented and their status
+- Tests written and their current status (passing/failing)
+- Key implementation decisions (model selection, prompt strategies)
+- Token usage considerations or optimizations made
+- What remains to be done
+- Any blockers or issues encountered
+- Commands that need to be run to continue
+
+### Why This Matters
+
+If your execution times out, a fresh agent will pick up the task. Your progress notes allow them to:
+- Understand what was already attempted
+- Continue from where you left off
+- Avoid repeating work that's already done
+- Learn from any issues you encountered
+
+**Example progress note:**
+```bash
+bd update fb-ai0.1.1 --notes "Progress: Read design doc. Created prompts/summarizer.py with chain implementation. Added mock tests in tests/test_summarizer.py - 3/4 passing. Remaining: add retry logic for rate limits, optimize token usage. Blocker: None."
+```
+
 ## Completing Your Beads Task
 
 After finishing work on a beads task, you MUST complete these steps in order:

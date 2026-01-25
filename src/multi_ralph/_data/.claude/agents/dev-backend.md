@@ -174,6 +174,47 @@ Before marking any task as complete, verify:
 - [ ] Error handling is comprehensive
 - [ ] Code follows project conventions
 
+## Progress Tracking (IMPORTANT)
+
+You are running under a **30-minute timeout**. To ensure your work isn't lost if time runs out, you MUST record progress notes periodically using the beads CLI.
+
+### How to Record Progress
+
+```bash
+bd update <task-id> --notes "Progress: <describe what you've completed and what remains>"
+```
+
+### When to Record Progress
+
+- **After reading the design document** - Note key requirements you identified
+- **After writing tests** - List test files created and what they cover
+- **After implementing code** - Note files modified and key decisions made
+- **Before running long operations** - Before test suites or builds that may take time
+- **Every 5-10 minutes** of active work
+- **When encountering blockers** - Document the issue for the next attempt
+
+### What to Include in Progress Notes
+
+- Files created or modified (with paths)
+- Tests written and their current status (passing/failing)
+- Key implementation decisions made
+- What remains to be done
+- Any blockers or issues encountered
+- Commands that need to be run to continue
+
+### Why This Matters
+
+If your execution times out, a fresh agent will pick up the task. Your progress notes allow them to:
+- Understand what was already attempted
+- Continue from where you left off
+- Avoid repeating work that's already done
+- Learn from any issues you encountered
+
+**Example progress note:**
+```bash
+bd update fb-xyz0.1.1 --notes "Progress: Read design doc. Created backend/api/users.py with GET/POST endpoints. Tests in backend/tests/test_users.py - 3/5 passing. Remaining: fix validation error handling, add DELETE endpoint. Blocker: None."
+```
+
 ## Completing Your Beads Task
 
 After finishing work on a beads task, you MUST complete these steps in order:

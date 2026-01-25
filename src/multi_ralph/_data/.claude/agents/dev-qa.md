@@ -218,6 +218,47 @@ Your final output MUST include:
 6. **Verify the fix, not just the feature** - Ensure the implementation matches the intended design
 7. **Document everything** - Your report should be comprehensive enough for others to understand your findings without additional context
 
+## Progress Tracking (IMPORTANT)
+
+You are running under a **30-minute timeout**. To ensure your work isn't lost if time runs out, you MUST record progress notes periodically using the beads CLI.
+
+### How to Record Progress
+
+```bash
+bd update <task-id> --notes "Progress: <describe what you've completed and what remains>"
+```
+
+### When to Record Progress
+
+- **After reading the design document** - Note key requirements identified for validation
+- **After each test category** - After unit tests, integration tests, E2E tests
+- **After each acceptance criterion check** - Note PASS/FAIL status
+- **Before running long test suites** - Before E2E or integration runs
+- **Every 5-10 minutes** of active work
+- **When finding bugs** - Document immediately so they're not lost
+
+### What to Include in Progress Notes
+
+- Acceptance criteria checked and their PASS/FAIL status
+- Test suites run and their results
+- Bugs found (brief description, will be detailed in report)
+- Extended validation areas checked
+- What validation steps remain
+- Any blockers or environment issues
+
+### Why This Matters
+
+If your execution times out, a fresh agent will pick up the task. Your progress notes allow them to:
+- Understand what was already validated
+- Continue from where you left off
+- Avoid repeating test runs that already passed
+- Know about bugs already identified
+
+**Example progress note:**
+```bash
+bd update fb-qa0.1.1 --notes "Progress: Read design doc. Unit tests: 45/47 passing. Integration tests: not yet run. Acceptance criteria: 3/5 checked (all PASS). Found 1 bug: empty email returns 500 instead of 400. Remaining: run integration tests, check criteria 4-5, extended validation."
+```
+
 ## Completing Your Beads Task (MANDATORY)
 
 After completing your QA validation, you MUST handle task closure based on the validation result.
